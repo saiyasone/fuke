@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import CryptoJS from "crypto-js";
 
 const FileUpload: React.FC = () => {
-  const chunkSize = 10 * 1024 * 1024; // 1MB
+  const chunkSize = 50 * 1024 * 1024; // 1MB
 
   const [files, setFiles] = useState<File[] | any[]>([]);
   const [fileStates, setFileStates] = useState<Record<number, any>>({});
@@ -160,7 +160,6 @@ const FileUpload: React.FC = () => {
     const { url } = await presignedResponse.json();
 
     return new Promise<void>((resolve, reject) => {
-      console.log({ partNumber });
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", url, true);
       xhr.setRequestHeader("Content-Type", blob.type);
@@ -177,7 +176,7 @@ const FileUpload: React.FC = () => {
               ],
             },
           }));
-          console.log({ partNumber });
+
           const percentComplete = Math.round((partNumber * 100) / numParts);
           let allParts: any = [];
           setFileStates((prev) => ({
@@ -192,7 +191,6 @@ const FileUpload: React.FC = () => {
           // allParts.push({ ETag: xhr.getResponseHeader('ETag'), PartNumber: partNumber })
 
           if (percentComplete >= 100) {
-            console.log({ fileStates });
             const endTime = Date.now();
             const timeTaken =
               (endTime - fileStates[fileIndex].startTime) / 1000; // time in seconds
@@ -277,11 +275,10 @@ const FileUpload: React.FC = () => {
 
   const retryFailedParts = async () => {
     if (!navigator.onLine) return;
-    console.log({ fileStates });
 
     const promises = Object.keys(fileStates).map(async (fileIndex) => {
       const { retryParts, file } = fileStates[parseInt(fileIndex)];
-      console.log("start====1", fileIndex);
+
       setFileStates((prev) => ({
         ...prev,
         [fileIndex]: { ...prev[parseInt(fileIndex)], retryParts: [] },
@@ -291,7 +288,6 @@ const FileUpload: React.FC = () => {
         const blob = file.slice(start, end);
         try {
           await uploadPart(parseInt(fileIndex), partNumber, blob);
-          console.log("start====2", fileIndex);
         } catch (error) {
           console.error(`Error retrying part ${partNumber}: `, error);
           setFileStates((prev) => ({
@@ -321,7 +317,12 @@ const FileUpload: React.FC = () => {
             fileState?.parts?.length > 0 &&
             uploadComplete
           ) {
-            console.log("start complete:: ", fileIndex, { fileState });
+            // console.log({
+            //   progress: fileState?.progress,
+            //   retryPart: fileState?.retryParts?.length,
+            //   parts: fileState?.parts?.length,
+            //   uploadComplete,
+            // });
             await tryCompleteMultipartUpload(
               fileIndex,
               [...fileState?.parts],
@@ -389,12 +390,13 @@ const FileUpload: React.FC = () => {
       (acc, fileState) => ({ ...acc, ...fileState }),
       {}
     );
+
     setFileStates(newFileStates);
     setStartUpload(true);
   };
 
   return (
-    <div>
+    <div style={{ padding: "0 25px" }}>
       <input type="file" multiple onChange={onFileChange} />
       <button onClick={handleUpload}>Upload</button>
       <ul>
